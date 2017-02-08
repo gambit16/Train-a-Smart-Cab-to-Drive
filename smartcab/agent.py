@@ -74,7 +74,7 @@ class LearningAgent(Agent):
         ###########
         # Set 'state' as a tuple of relevant data for the agent
 
-        state = (waypoint, inputs['light'], inputs['oncoming'], inputs['left']!=None)
+        state = (waypoint, inputs['light'], inputs['oncoming'], inputs['left']!='forward')
 
         return state
 
@@ -88,8 +88,8 @@ class LearningAgent(Agent):
         ###########
         # Calculate the maximum Q-value of all actions for a given state
         state_key = ''.join(str(x) for x in state)
-        maxQ = max(self.Q[state_key].iterkeys(), key=(lambda key: self.Q[state_key][key]))
-        return maxQ 
+        maxQ = max(self.Q[state_key].values())
+        return maxQ
 
 
     def createQ(self, state):
@@ -104,10 +104,10 @@ class LearningAgent(Agent):
         state_key = ''.join(str(x) for x in state)
         if state_key not in self.Q.keys():
             self.Q[state_key]={}
-            self.Q[state_key]['right'] = 10.0
-            self.Q[state_key]['left'] = 10.0
-            self.Q[state_key]['forward'] = 10.0
-            self.Q[state_key]['None'] = 10.0
+            self.Q[state_key]['right'] = 0.0
+            self.Q[state_key]['left'] = 0.0
+            self.Q[state_key]['forward'] = 0.0
+            self.Q[state_key]['None'] = 0.0
         
         return
 
@@ -127,21 +127,24 @@ class LearningAgent(Agent):
         # When not learning, choose a random action
         # When learning, choose a random action with 'epsilon' probability
         #   Otherwise, choose an action with the highest Q-value for the current state
+        state_key = ''.join(str(x) for x in state)
         if self.learning == False:
             action = random.choice(self.valid_actions)
         else:
             random_threshold = random.random()
             if random_threshold > self.epsilon:
-                action = self.get_maxQ(state)
+                maxQ = self.get_maxQ(state)
+                action_list = [k for k,v in self.Q[state_key].iteritems() if v == maxQ]
+                if len(action_list)>1:
+                    action = random.choice(action_list)
+                else:
+                    action = action_list[0]
                 if 'None' in action:
                     action = None
-                # print type(action)
-                # print action
-                # print action in self.valid_actions
-                # print "inside first"
+
             else:
                 action = random.choice(self.valid_actions)
-                #print "inside second"
+                
         #print action
         return action
 
@@ -156,9 +159,10 @@ class LearningAgent(Agent):
         ###########
         # When learning, implement the value iteration update rule
         #   Use only the learning rate 'alpha' (do not use the discount factor 'gamma')
-        state_key = ''.join(str(x) for x in state)
-        action_key = str(action)
-        self.Q[state_key][action_key] = self.alpha * reward + (1-self.alpha)*self.Q[state_key][action_key]
+        if self.learning == True:
+            state_key = ''.join(str(x) for x in state)
+            action_key = str(action)
+            self.Q[state_key][action_key] = self.alpha * reward + (1-self.alpha)*self.Q[state_key][action_key]
         return
 
 
@@ -209,7 +213,7 @@ def run():
     #   display      - set to False to disable the GUI if PyGame is enabled
     #   log_metrics  - set to True to log trial and simulation results to /logs
     #   optimized    - set to True to change the default log file name
-    sim = Simulator(env,update_delay=0.0001,log_metrics=True,optimized=True)
+    sim = Simulator(env,update_delay=0.5,log_metrics=True,optimized=True)
     
     ##############
     # Run the simulator
